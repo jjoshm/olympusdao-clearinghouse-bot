@@ -1,0 +1,22 @@
+[package]
+name = "olympusdao-liquidation-bot"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.81"
+artemis-core = { git = "https://github.com/Oighty/artemis" }
+async-trait = "0.1.79"
+console = "0.15.8"
+dotenvy = "0.15.7"
+ethers = { version = "2.0.14", features = ["ws"] }
+indicatif = "0.17.8"
+openssl = "0.10.64"
+reqwest = { version = "0.12.2", features = ["json"] }
+serde = { version = "1.0.197", features = ["derive"] }
+serde_json = "1.0.115"
+tokio = { version = "1.37.0", features = ["full"] }
+tracing = "0.1.40"
+tracing-log = "0.2.0"
