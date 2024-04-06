@@ -14,7 +14,7 @@ RUN cargo build --release
 RUN mv ./target/release/olympusdao-liquidation-bot ./app
 
 FROM debian:bookworm-slim AS runtime
-RUN apt update -y && apt install openssl -y
+RUN apt update -y && apt install openssl ca-certificates -y
 WORKDIR /app
 COPY --from=builder /app/app /usr/local/bin/
 ENTRYPOINT ["/usr/local/bin/app"]
