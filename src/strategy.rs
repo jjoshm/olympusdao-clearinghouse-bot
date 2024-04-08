@@ -14,7 +14,7 @@ use async_trait::async_trait;
 use comfy_table::{presets::UTF8_FULL, Attribute, Cell, Color, Table};
 use ethers::{contract::parse_log, providers::Middleware, types::U256};
 use indicatif::{ProgressBar, ProgressState, ProgressStyle};
-use std::{fmt::Write, sync::Arc};
+use std::{fmt::Write, process::exit, sync::Arc};
 
 use crate::types::{Action, Event};
 
@@ -116,7 +116,7 @@ impl<M: Middleware + 'static> LiquidationStrategy<M> {
 }
 
 impl<M: Middleware + 'static> LiquidationStrategy<M> {
-    async fn print_table(&self, claimable: U256, gohm_price: U256) {
+    async fn print_table(&self, claimable: U256, gohm_price: U256, claimable_consider_gas_and_targets: U256) {
         println!("\x1B[2J\x1B[1;1H");
         greet();
 
@@ -149,37 +149,6 @@ impl<M: Middleware + 'static> LiquidationStrategy<M> {
             }
         });
 
-        let claiable_consider_gas_and_targets =
-            self.loans.iter().filter(|loan| {
-                loan.is_claimable(U256::from(get_sys_time_in_secs()))
-                    && loan.calc_rewards_in_dollar(
-                        U256::from(get_sys_time_in_secs()),
-                        ohm_price.into(),
-                    ) > 0.into()
-            })
-            .fold(U256::from(0), |acc, loan| {
-                if loan.calc_reward_percentage()
-                    > std::env::var("REWARD_PERIOD_TARGET")
-                        .unwrap()
-                        .parse()
-                        .unwrap()
-                {
-                    return acc + loan.calc_rewards_in_dollar(
-                        U256::from(get_sys_time_in_secs()),
-                        ohm_price.into(),
-                    )
-                } else {
-                    return acc
-                }
-            });
-
-        let claiable_consider_gas_and_targets: U256 =
-            if claiable_consider_gas_and_targets < std::env::var("MIN_PROFIT").unwrap().parse().unwrap() {
-                0.into()
-            } else {
-                claiable_consider_gas_and_targets.into()
-            };
-
         table_info.load_preset(UTF8_FULL).set_header(vec![
             "Claimable",
             "Claimable inc. gas and target",
@@ -194,7 +163,7 @@ impl<M: Middleware + 'static> LiquidationStrategy<M> {
         let duration = duration.format("%Hh:%Mm:%Ss");
         table_info.load_preset(UTF8_FULL).add_row(vec![
             format!("{} dollar", claimable.to_string()),
-            format!("{} dollar", claiable_consider_gas_and_targets.to_string()),
+            format!("{} dollar", claimable_consider_gas_and_targets.to_string()),
             format!("{} dollar", std::env::var("MIN_PROFIT").unwrap()),
             format!("{}%", std::env::var("REWARD_PERIOD_TARGET").unwrap()),
             expired_loans.len().to_string(),
@@ -337,7 +306,8 @@ impl<M: Middleware + 'static> Strategy<Event, Action> for LiquidationStrategy<M>
                 }
 
                 if claimable_loans_with_reward_limit_hit.len() == 0 {
-                    self.print_table(claimable_dollar_raw, gohm_price.into()).await;
+                    self.print_table(claimable_dollar_raw, gohm_price.into(), 0.into())
+                        .await;
                     return vec![];
                 }
 
@@ -363,7 +333,6 @@ impl<M: Middleware + 'static> Strategy<Event, Action> for LiquidationStrategy<M>
                         },
                     );
 
-                let gas_price = self.client.get_gas_price().await.unwrap();
                 let tx = self
                     .clearinghouse
                     .claim_defaulted(
@@ -373,15 +342,20 @@ impl<M: Middleware + 'static> Strategy<Event, Action> for LiquidationStrategy<M>
                     .tx;
 
                 let gas_estimate = self.client.estimate_gas(&tx, None).await.unwrap();
-                let gas_cost = gas_estimate * gas_price;
-                let gas_cost_dollar =
-                    gas_cost * get_token_price("ethereum").await.unwrap() as u64 / 1e18 as u64;
-                let net_claimable_reward_target_hit_dollar =
-                    claimable_reward_hit_dollar - gas_cost_dollar;
+                let gas_price = self.client.get_gas_price().await.unwrap();
+                let eth_price = get_token_price("ethereum").await.unwrap() as u64;
+                let gas_cost_dollar = gas_estimate * gas_price * eth_price / (1e+18 as u64);
+                let net_claimable_reward_target_hit_dollar = if claimable_reward_hit_dollar > gas_cost_dollar {
+                    claimable_reward_hit_dollar - gas_cost_dollar
+                } else {
+                    0.into()
+                };
+
                 let profit_target_hit = net_claimable_reward_target_hit_dollar
                     > std::env::var("MIN_PROFIT").unwrap().parse().unwrap();
 
-                self.print_table(claimable_dollar_raw, gohm_price.into()).await;
+                self.print_table(claimable_dollar_raw, gohm_price.into(), net_claimable_reward_target_hit_dollar)
+                    .await;
 
                 if profit_target_hit {
                     println!("[ACTION] Claiming loans...");
