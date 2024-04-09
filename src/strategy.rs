@@ -68,7 +68,7 @@ impl<M: Middleware + 'static> LoanTarget<M> {
         let elapsed = timestamp - self.expiry;
         let seven_days_in_s: U256 = (7 * 24 * 60 * 60).into();
         let reward_percentage = if elapsed < seven_days_in_s {
-            (elapsed * 100) / seven_days_in_s
+            elapsed * 100 / seven_days_in_s
         } else {
             100.into()
         };
@@ -184,8 +184,8 @@ impl<M: Middleware + 'static> LiquidationStrategy<M> {
             let is_reward_period_target_hit = loan.calc_reward_percentage()
                 > std::env::var("REWARD_PERIOD_TARGET")
                     .unwrap()
-                    .parse()
-                    .unwrap();
+                    .parse::<u64>()
+                    .unwrap().into();
             let reward_target_text = format!("{}%", loan.calc_reward_percentage());
             let reward_target_text: Cell = if is_reward_period_target_hit {
                 Cell::new(reward_target_text)
@@ -296,8 +296,8 @@ impl<M: Middleware + 'static> Strategy<Event, Action> for LiquidationStrategy<M>
                         loan.calc_reward_percentage()
                             > std::env::var("REWARD_PERIOD_TARGET")
                                 .unwrap()
-                                .parse()
-                                .unwrap()
+                                .parse::<u64>()
+                                .unwrap().into()
                     })
                     .collect::<Vec<&mut &mut LoanTarget<M>>>();
 
