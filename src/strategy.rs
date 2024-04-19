@@ -352,7 +352,7 @@ impl<M: Middleware + 'static> Strategy<Event, Action> for LiquidationStrategy<M>
                 };
 
                 let profit_target_hit = net_claimable_reward_target_hit_dollar
-                    > std::env::var("MIN_PROFIT").unwrap().parse().unwrap();
+                    > std::env::var("MIN_PROFIT").unwrap().parse::<u64>().unwrap().into();
 
                 self.print_table(claimable_dollar_raw, gohm_price.into(), net_claimable_reward_target_hit_dollar)
                     .await;
