@@ -15,7 +15,7 @@ You need to update the env variables accordingly.
 Make sure to use wss for the `RPC_PROVIDER_READ`.
 
 ```
-docker run --name olympusdao-clearinghouse-bot --restart unless-stopped \                                                                   14:50:59
+docker run --name olympusdao-clearinghouse-bot --restart unless-stopped \                                                                   
          -e PRIVATE_KEY=1234 \
          -e RPC_PROVIDER_READ=wss://eth-mainnet.g.alchemy.com/xxxxx \
          -e RPC_PROVIDER_SIGN=https://rpc.flashbots.net/fast \
