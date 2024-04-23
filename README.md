@@ -37,6 +37,6 @@ docker run --name olympusdao-clearinghouse-bot --restart unless-stopped \       
 
 Add me on Discord `ninjo.sh` https://discord.com/users/270271067459682306
 
-
+---
 
 Thanks to https://github.com/paradigmxyz/artemis
